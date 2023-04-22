@@ -1,0 +1,34 @@
+#include "macro.h"
+
+.text
+.global _start
+_start:
+	ldr x0, =8000000
+	msr CNTFRQ_EL0, x0
+
+	ldr x0, =0x187FF0
+	mov sp, x0/* ����c����֮ǰ������ջ */
+	//msr sp_el3,x0
+
+    ldr w0, =0x30220004 
+	ldr w1, [x0]
+	orr w1, w1, #(3<<11)
+	str w1, [x0]
+
+	msr daifclr, #7
+	
+	mrs x0, scr_el3
+	orr x0, x0, #(7<<1)
+	and x0, x0, #(~(1<<0))
+	msr scr_el3, x0
+	
+	adr x0,vector_table
+	msr vbar_el3, x0
+	
+	//bl code_relocate
+	//bl clean_bss
+
+	bl main
+halt_loop:
+	b halt_loop
+

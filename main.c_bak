@@ -1,0 +1,80 @@
+#include "generic_timer.h"
+#include "uart.h"
+#include "clock.h"
+#include "./include/gic/gic.h"
+#include "my_printf.h"
+#include "ddr.h"
+
+struct sctr_regs {
+	unsigned int cntcr;
+	unsigned int cntsr;
+	unsigned int cntcv1;
+	unsigned int cntcv2;
+	unsigned int resv1[4];
+	unsigned int cntfid0;
+	unsigned int cntfid1;
+	unsigned int cntfid2;
+	unsigned int resv2[1001];
+	unsigned int counterid[1];
+};
+
+void key_init(void)
+{
+	volatile UINT32 *puiKeyConf = (volatile UINT32 *)0x30220004;
+	volatile UINT32 *puiKeyIcr = (volatile UINT32 *)0x3022000C;
+	volatile UINT32 *puiKeyImr = (volatile UINT32 *)0x30220014;
+	
+	T_GIC_SPI tGicSpi;
+	
+	*puiKeyConf &= ~(1<<13);
+	*puiKeyIcr &= ~(3<<26);
+	*puiKeyIcr |= 3<<26;
+	
+	*puiKeyImr = 1<<13;
+
+#if 1
+	tGicSpi.ucIntId = 68;
+	tGicSpi.ucPriority = 0;
+	//tGicSpi.ptIrqCallBack = key_irq_handler;
+	gic_spi_init(&tGicSpi);
+#endif
+}
+
+int main()
+{
+	int iRet = 0;
+    volatile unsigned int *puiGpioCfg = (volatile unsigned int *)0x30220004;
+    volatile unsigned int *puiGpioData = (volatile unsigned int *)0x30220000;
+	volatile UINT32 *puiKeyState = (volatile UINT32 *)0x30220018;
+	
+	UINT8 ucKeyState = 0;
+	UINT32 uiRegAddr = 0;
+	UINT32 uiRegVal = 0;
+	UINT32 uiIdx = 0;
+	UINT64 ullIntId = 0;
+	UINT64 ullCurEl = 0;
+	
+ 	*puiGpioData |= (3<<11);
+			
+	/* init clk */ 
+	clk_init();
+	/* init uart */
+	uart_init();
+
+	gic_init();
+
+	key_init();
+
+	ddr_init(E_DDR_TYPE_LPDDR4);
+	
+    while(1)
+    {	
+		*puiGpioData &= ~(3<<11);  
+		udelay(1*1000*1000);
+		*puiGpioData |= (3<<11);
+		mdelay(1000);   
+		my_printf("main func key state:0x%x\r\n", *puiKeyState);
+	}
+
+    return 0;
+}
